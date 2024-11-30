@@ -12,3 +12,5 @@ All scripts require YALMIP and MOSEK to run. Both packages can be download for f
 
 ## **Repository Contents**
 This repository contains MATLAB script to reproduce the results for the examples in Section 4 of the paper. Precisely, the scripts perform the following tasks:
+- `double_well.m` applies the method to the escape from a double well potential landscape and reproduces all results presented in Section 4.1
+- 
