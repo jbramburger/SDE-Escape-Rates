@@ -15,4 +15,5 @@ This repository contains MATLAB script to reproduce the results for the examples
 - `double_well.m` applies the method to the escape from a double well potential landscape and reproduces all results presented in Section 4.1
 - `ball_escape_2d.m` applies the method to the escape from the unit ball in 2D and reproduces results presented in Section 4.2.1
 - `ball_escape_3d.m` applies the method to the escape from the unit ball in 3D and reproduces results presented in Section 4.2.1
-- 
+- `ball_escape_2_holes.m` applies the method to the escape from the unit ball in 2D with 2 symmetrically placed small exits and reproduces results presented in Section 4.2.2
+- `ball_escape_1_hole.m` applies the method to the escape from the unit ball in 2D with 1 small exit and reproduces results presented in Section 4.2.2
