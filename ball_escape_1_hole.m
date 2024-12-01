@@ -7,8 +7,8 @@
 %
 % We bound the principle eigenvalue and approximate the leading
 % eigenfunction for Brownian motion in the unit ball in 2D that can only
-% escape through two small hole of radius r centred at (1,0) and (0,1) on
-% the boundary.
+% escape through one small hole of radius r centred at (1,0) on the 
+% boundary.
 %
 % Packages required: YALMIP and MOSEK
 %
@@ -32,17 +32,14 @@ sdpvar x y u v w lam % v = du/dx and w = du/dy
 % Poincare inequality portion
 p = v^2 + w^2 - lam*u^2;
 
-% Need to break up into two parts: -b <= y <= b inside circle and complement
-% Compute b based on r
-r = 0.5;
-xb = (2 - r^2)/2;
-b = sqrt(1 - xb^2);
+% Need to break up into two parts: inside and outside of ball of radius rb
+% centred at (1,0)
+rb = 0.5;
 
-%% Inside -b <= y <= b (i.e. b^2 - y^2 >= 0)
+%% Inside ball of radius r centred at (1,0) (i.e. rb^2 - (x - 1)^2 - y^2 >= 0 )
 
-% Create function f1(x,y) odd in x and even in y
+% Create function f1(x,y) even in y
 fpowers1 = monpowers(2,d-2);
-fpowers1 = fpowers1(find(mod(fpowers1(:,1),2)==1),:); % equivariant wrt x --> -x
 fpowers1 = fpowers1(find(mod(fpowers1(:,2),2)==0),:); % invariant wrt y --> -y
 % Build f1 polynomial
 cf1 = sdpvar(size(fpowers1,1),1); % f1 poylnomial coefficients
@@ -51,10 +48,9 @@ for i = 1:size(fpowers1,1)
     f1 = f1 + cf1(i)*prod([x y].^fpowers1(i,:));
 end
 
-% Create function f2(x,y) odd in y and even in x
+% Create function f2(x,y) odd in y 
 fpowers2 = monpowers(2,d-2);
 fpowers2 = fpowers2(find(mod(fpowers2(:,2),2)==1),:); % equivariant wrt y --> -y
-fpowers2 = fpowers2(find(mod(fpowers2(:,1),2)==0),:); % invariant wrt x --> -x
 % Build f2 polynomial
 cf2 = sdpvar(size(fpowers2,1),1); % f2 poylnomial coefficients
 f2 = 0;
@@ -69,7 +65,6 @@ df = (1 - x^2 - y^2)*dfx + 2*x*f1 + (1 - x^2 - y^2)*dfy + 2*y*f2; % total deriva
 
 % S-procedure 
 Spowers = monpowers(5,d);
-Spowers = Spowers(find(mod(Spowers(:,1)+Spowers(:,4),2)==0),:); % invariant under (x,v) --> -(x,v)
 Spowers = Spowers(find(mod(Spowers(:,2)+Spowers(:,5),2)==0),:); % invariant under (y,w) --> -(y,w)
 Spowers = Spowers(find(Spowers(:,1)<=d),:); % max degree in x is d
 Spowers = Spowers(find(Spowers(:,2)<=d),:); % max degree in y is d
@@ -90,13 +85,12 @@ for i = 1:size(Spowers,1)
 end
 
 % Objective
-obj = [sos( p*(1 - x^2 - y^2)^2 + df*u^2 + 2*(v*f1 + w*f2)*u*(1 - x^2 - y^2) - (1 - x^2 - y^2)*s1 - (b^2 - y^2)*s2 ); sos(s1); sos(s2)];
+obj = [sos( p*(1 - x^2 - y^2)^2 + df*u^2 + 2*(v*f1 + w*f2)*u*(1 - x^2 - y^2) - (1 - x^2 - y^2)*s1 - (rb^2 - (x - 1)^2 - y^2)*s2 ); sos(s1); sos(s2)];
 
-%% Outside -b <= y <= b (i.e. y^2 - b^2 >= 0)
+%% Outside ball of radius r centred at (1,0) (i.e. rb^2 - (x - 1)^2 - y^2 <= 0 )
 
-% Create function g1(x,y) odd in x and even in y
+% Create function g1(x,y) even in y
 gpowers1 = monpowers(2,d);
-gpowers1 = gpowers1(find(mod(gpowers1(:,1),2)==1),:); % equivariant wrt x --> -x
 gpowers1 = gpowers1(find(mod(gpowers1(:,2),2)==0),:); % invariant wrt y --> -y
 % Build g1 polynomial
 cg1 = sdpvar(size(gpowers1,1),1); % g1 poylnomial coefficients
@@ -105,10 +99,9 @@ for i = 1:size(gpowers1,1)
     g1 = g1 + cg1(i)*prod([x y].^gpowers1(i,:));
 end
 
-% Create function g2(x,y) odd in y and even in x
+% Create function g2(x,y) odd in y 
 gpowers2 = monpowers(2,d);
 gpowers2 = gpowers2(find(mod(gpowers2(:,2),2)==1),:); % equivariant wrt y --> -y
-gpowers2 = gpowers2(find(mod(gpowers2(:,1),2)==0),:); % invariant wrt x --> -x
 % Build g2 polynomial
 cg2 = sdpvar(size(gpowers2,1),1); % g2 poylnomial coefficients
 g2 = 0;
@@ -136,7 +129,7 @@ for i = 1:size(Spowers,1)
 end
 
 % Objective part 2
-obj = [obj; sos( p + dg*u^2 + 2*(v*g1 + w*g2)*u - (1 - x^2 - y^2)*s3 - (y^2 - b^2)*s4 ); sos(s3); sos(s4)];
+obj = [obj; sos( p + dg*u^2 + 2*(v*g1 + w*g2)*u - (1 - x^2 - y^2)*s3 + (rb^2 - (x - 1)^2 - y^2)*s4 ); sos(s3); sos(s4)];
 
 %% Additional condition on g1 and g2 to make them satisfy Neumann conditions
 
@@ -145,7 +138,6 @@ z = 2*x*g1 + 2*y*g2;
 
 % S-procedure 
 Spowers2 = monpowers(2,d);
-Spowers2 = Spowers2(find(mod(Spowers2(:,1),2)==0),:); % invariant under x --> -x
 Spowers2 = Spowers2(find(mod(Spowers2(:,2),2)==0),:); % invariant under y --> -y
 
 % Build S5 polynomial
@@ -161,6 +153,7 @@ s6 = 0;
 for i = 1:size(Spowers2,1)
     s6 = s6 + cs6(i)*prod([x y].^Spowers2(i,:));
 end
+
 % Build S7 polynomial
 cs7 = sdpvar(size(Spowers2,1),1); % s poylnomial coefficients
 s7 = 0;
@@ -175,29 +168,71 @@ for i = 1:size(Spowers2,1)
     s8 = s8 + cs8(i)*prod([x y].^Spowers2(i,:));
 end
 
-obj = [obj; sos( z - (1 - x^2 - y^2)*s5 - (y^2 - b^2)*s6 ); sos( -z - (1 - x^2 - y^2)*s7 - (y^2 - b^2)*s8 ); sos(s6); sos(s8)];
+obj = [obj; sos( z - (1 - x^2 - y^2)*s5 + (rb^2 - (x - 1)^2 - y^2)*s6 ); sos( -z - (1 - x^2 - y^2)*s7 + (rb^2 - (x - 1)^2 - y^2)*s8 ); sos(s6); sos(s8)];
 
-%% Continuity of f_i and g_i at y = b
+%% Continuity of f_i and g_i on rb^2 = (x - 1)^2 + y^2 inside unit disk
 
-f1b = replace(f1,y,b);
-f2b = replace(f2,y,b);
-g1b = replace(g1,y,b);
-g2b = replace(g2,y,b);
+% Build S9 polynomial
+cs9 = sdpvar(size(Spowers2,1),1); % s poylnomial coefficients
+s9 = 0;
+for i = 1:size(Spowers2,1)
+    s9 = s9 + cs9(i)*prod([x y].^Spowers2(i,:));
+end
 
-[s9, cs9] = polynomial(x,d,0,1);
-s9 = x*s9;
-[s10, cs10] = polynomial(x,d,0,1);
-s10 = x*s10;
-[s11, cs11] = polynomial(x,d,0,1);
-s11 = x*s11;
-[s12, cs12] = polynomial(x,d,0,1);
-s12 = x*s12;
+% Build S10 polynomial
+cs10 = sdpvar(size(Spowers2,1),1); % s poylnomial coefficients
+s10 = 0;
+for i = 1:size(Spowers2,1)
+    s10 = s10 + cs10(i)*prod([x y].^Spowers2(i,:));
+end
 
-obj = [obj; sos( f1b - g1b*(1 - x^2 - b^2) - (xb^2 - x^2)*s9 ); sos( -f1b + g1b*(1 - x^2 - b^2) - (xb^2 - x^2)*s10 ); sos( f2b - g2b*(1 - x^2 - b^2) - (xb^2 - x^2)*s11 ); sos( -f2b + g2b*(1 - x^2 - b^2) - (xb^2 - x^2)*s12 ); sos(s9); sos(s10); sos(s11); sos(s12)];
+% Build S11 polynomial
+cs11 = sdpvar(size(Spowers2,1),1); % s poylnomial coefficients
+s11 = 0;
+for i = 1:size(Spowers2,1)
+    s11 = s11 + cs11(i)*prod([x y].^Spowers2(i,:));
+end
+
+% Build S12 polynomial
+cs12 = sdpvar(size(Spowers2,1),1); % s poylnomial coefficients
+s12 = 0;
+for i = 1:size(Spowers2,1)
+    s12 = s12 + cs12(i)*prod([x y].^Spowers2(i,:));
+end
+
+% Build S13 polynomial
+cs13 = sdpvar(size(Spowers2,1),1); % s poylnomial coefficients
+s13 = 0;
+for i = 1:size(Spowers2,1)
+    s13 = s13 + cs13(i)*prod([x y].^Spowers2(i,:));
+end
+
+% Build S14 polynomial
+cs14 = sdpvar(size(Spowers2,1),1); % s poylnomial coefficients
+s14 = 0;
+for i = 1:size(Spowers2,1)
+    s14 = s14 + cs14(i)*prod([x y].^Spowers2(i,:));
+end
+
+% Build S15 polynomial
+cs15 = sdpvar(size(Spowers2,1),1); % s poylnomial coefficients
+s15 = 0;
+for i = 1:size(Spowers2,1)
+    s15 = s15 + cs15(i)*prod([x y].^Spowers2(i,:));
+end
+
+% Build S16 polynomial
+cs16 = sdpvar(size(Spowers2,1),1); % s poylnomial coefficients
+s16 = 0;
+for i = 1:size(Spowers2,1)
+    s16 = s16 + cs16(i)*prod([x y].^Spowers2(i,:));
+end
+
+obj = [obj; sos( f1 - g1*(1 - x^2 - y^2) - (1 - x^2 - y^2)*s9  - (rb^2 - (x - 1)^2 - y^2)*s10 ); sos( -f1 + g1*(1 - x^2 - y^2) - (1 - x^2 - y^2)*s11  - (rb^2 - (x - 1)^2 - y^2)*s12 ); sos( f2 - g2*(1 - x^2 - y^2) - (1 - x^2 - y^2)*s13  - (rb^2 - (x - 1)^2 - y^2)*s14 ); sos( -f2 + g2*(1 - x^2 - y^2) - (1 - x^2 - y^2)*s15 - (rb^2 - (x - 1)^2 - y^2)*s16 ); sos(s9); sos(s11); sos(s13); sos(s15)];
 
 %% Solve the problem
 
-sol = solvesos(obj,-lam,[],[cf1; cf2; cg1; cg2; cs1; cs2; cs3; cs4; cs5; cs6; cs7; cs8; cs9; cs10; cs11; cs12; lam;]) 
+sol = solvesos(obj,-lam,[],[cf1; cf2; cg1; cg2; cs1; cs2; cs3; cs4; cs5; cs6; cs7; cs8; cs9; cs10; cs11; cs12; cs13; cs14; cs15; cs16; lam;]) 
 
 %% Extract approximate eigenfunction 
 
@@ -236,28 +271,24 @@ g2eval = replace(g2eval,'*','.*');    % element-wise multiplication
 g2eval = str2func(['@(x,y)' g2eval]); % convert function string to function handle
 
 % Continuity condition
-contint = b*f2eval(0*t, b*t)./(1 - (0*t).^2 - (b*t).^2);
+xb = 1 - rb; % patch solutions at (xb,0) 
+contint = (xb + 1)*g1eval(-1 + (xb + 1)*t, 0);
 contcond = -trapz(t,contint);
 
 loggradu = [];
 logu = [];
 for ind1 = 1:length(r)
     for ind2 = 1:length(th)
-        if yplt(ind1,ind2) <= b && yplt(ind1,ind2) >= -b
+        if rb^2 >= (xplt(ind1,ind2) - 1)^2 + yplt(ind1,ind2)^2
             
-            loggradu = xplt(ind1,ind2)*f1eval(xplt(ind1,ind2)*t,yplt(ind1,ind2)*t)./(1 - (xplt(ind1,ind2)*t).^2 - (yplt(ind1,ind2)*t).^2) + yplt(ind1,ind2)*f2eval(xplt(ind1,ind2)*t, yplt(ind1,ind2)*t)./(1 - (xplt(ind1,ind2)*t).^2 - (yplt(ind1,ind2)*t).^2);
-            logu(ind1,ind2) = -trapz(t,loggradu);
+            loggradu = (xplt(ind1,ind2) - xb)*f1eval(xb + (xplt(ind1,ind2)-xb)*t,yplt(ind1,ind2)*t)./(1 - (xb + (xplt(ind1,ind2)-xb)*t).^2 - (yplt(ind1,ind2)*t).^2) + yplt(ind1,ind2)*f2eval(xb + (xplt(ind1,ind2)-xb)*t, yplt(ind1,ind2)*t)./(1 - (xb + (xplt(ind1,ind2)-xb)*t).^2 - (yplt(ind1,ind2)*t).^2);
+            logu(ind1,ind2) = contcond -trapz(t,loggradu);
             
-        elseif yplt(ind1,ind2) > b 
+        else 
         
-            loggradu = xplt(ind1,ind2)*g1eval(xplt(ind1,ind2)*t,b + (yplt(ind1,ind2) - b)*t) + (yplt(ind1,ind2) - b)*g2eval(xplt(ind1,ind2)*t, b + (yplt(ind1,ind2) - b)*t);
-            logu(ind1,ind2) = contcond - trapz(t,loggradu);
-            
-        elseif yplt(ind1,ind2) < -b 
-        
-            loggradu = xplt(ind1,ind2)*g1eval(xplt(ind1,ind2)*t,-b + (yplt(ind1,ind2) + b)*t) + (yplt(ind1,ind2) + b)*g2eval(xplt(ind1,ind2)*t, -b + (yplt(ind1,ind2) + b)*t);
-            logu(ind1,ind2) = contcond - trapz(t,loggradu);
-            
+            loggradu = (xplt(ind1,ind2) + 1)*g1eval(-1 + (xplt(ind1,ind2) + 1)*t,yplt(ind1,ind2)*t) + yplt(ind1,ind2)*g2eval(-1 + (xplt(ind1,ind2) + 1)*t, yplt(ind1,ind2)*t);
+            logu(ind1,ind2) = - trapz(t,loggradu);
+           
         end
         
     end
@@ -289,7 +320,7 @@ temp = [];
 vint = [];
 for ind1 = 1:length(r)
     for ind2 = 1:length(th)
-        if yplt(ind1,ind2) <= b && yplt(ind1,ind2) >= -b
+        if rb^2 >= (xplt(ind1,ind2) - 1)^2 + yplt(ind1,ind2)^2
             
             vint(ind1,ind2) = ustar(ind1,ind2)*f1eval(xplt(ind1,ind2), yplt(ind1,ind2))/(1 - (xplt(ind1,ind2))^2 - (yplt(ind1,ind2))^2);
            
@@ -308,7 +339,7 @@ temp = [];
 wint = [];
 for ind1 = 1:length(r)
     for ind2 = 1:length(th)
-        if yplt(ind1,ind2) <= b && yplt(ind1,ind2) >= -b
+        if rb^2 >= (xplt(ind1,ind2) - 1)^2 + yplt(ind1,ind2)^2
             
             wint(ind1,ind2) = ustar(ind1,ind2)*f2eval(xplt(ind1,ind2), yplt(ind1,ind2))/(1 - (xplt(ind1,ind2))^2 - (yplt(ind1,ind2))^2);
            
