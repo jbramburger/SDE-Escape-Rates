@@ -73,6 +73,7 @@ for i = 1:size(Spowers,1)
 end
 
 %% Solve SOS problem
+
 p = v^2 + w^2 - lam*u^2;
 obj = [sos( p*(1 - x^2 - y^2)^2 + df*u^2 + 2*(v*f1 + w*f2)*u*(1 - x^2 - y^2) - (1 - x^2 - y^2)*s ); sos(s)];
 solvesos(obj,-lam,[],[cf1; cf2; cs; lam;]) 
